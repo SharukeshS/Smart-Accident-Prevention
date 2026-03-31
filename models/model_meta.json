@@ -1,0 +1,25 @@
+{
+  "roc_auc": 0.6815,
+  "feature_importances": {
+    "hour": 0.023054204881191254,
+    "is_weekend": 0.020926419645547867,
+    "temperature_c": 0.024848345667123795,
+    "humidity_percent": 0.02697058580815792,
+    "wind_speed_kmh": 0.026005400344729424,
+    "visibility_km": 0.04925139248371124,
+    "rainfall_mm": 0.026263587176799774,
+    "congestion_percent": 0.02876991592347622,
+    "avg_speed_kmh": 0.029637083411216736,
+    "is_junction": 0.09435353428125381,
+    "near_school": 0.021674152463674545,
+    "flood_risk": 0.03423106297850609,
+    "weather_encoded": 0.5264763832092285,
+    "road_encoded": 0.0413837656378746,
+    "time_encoded": 0.02615426667034626
+  },
+  "n_train": 20000,
+  "n_test": 5000,
+  "positive_rate": 0.4184,
+  "xgb_weight": 0.55,
+  "rf_weight": 0.45
+}

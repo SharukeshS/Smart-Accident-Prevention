@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Accident Prevention — Chennai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+<style>
+/* ── Variables ───────────────────────────────────────────────── */
+:root {
+  --bg:       #07090f;
+  --s1:       #0c1017;
+  --s2:       #101520;
+  --s3:       #151d2a;
+  --border:   #1c2a3a;
+  --border2:  #243344;
+
+  --cyan:     #00d4ff;
+  --cyan-d:   #0099cc;
+  --green:    #00e676;
+  --amber:    #ffab00;
+  --red:      #ff3d5a;
+  --orange:   #ff6d3a;
+
+  --txt:      #ccd8e8;
+  --txt-2:    #5a7a94;
+  --txt-3:    #2e4558;
+
+  --mono:     'DM Mono', monospace;
+  --display:  'Syne', sans-serif;
+  --body:     'DM Sans', sans-serif;
+
+  --r:        6px;
+  --glow-c:   0 0 20px rgba(0,212,255,.18);
+  --glow-g:   0 0 20px rgba(0,230,118,.18);
+  --glow-r:   0 0 20px rgba(255,61,90,.22);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:var(--body);
+  height:100vh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────── */
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+
+/* ── Header ─────────────────────────────────────────────────── */
+header{
+  height:52px;
+  background:var(--s1);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;
+  justify-content:space-between;
+  padding:0 20px;
+  flex-shrink:0;
+  position:relative;
+  z-index:500;
+}
+.logo{
+  font-family:var(--display);
+  font-size:17px;
+  font-weight:800;
+  letter-spacing:.5px;
+  color:#fff;
+  display:flex;align-items:center;gap:10px;
+}
+.logo-icon{
+  width:28px;height:28px;
+  background:linear-gradient(135deg,var(--cyan),var(--cyan-d));
+  border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;
+  flex-shrink:0;
+}
+.logo em{color:var(--cyan);font-style:normal;}
+
+.hdr-center{
+  position:absolute;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:16px;
+}
+#live-clock{
+  font-family:var(--mono);
+  font-size:13px;
+  color:var(--cyan);
+  letter-spacing:2px;
+}
+.hdr-loc{
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--txt-2);
+  letter-spacing:1px;
+}
+
+.hdr-right{display:flex;align-items:center;gap:10px;}
+.pill{
+  display:flex;align-items:center;gap:5px;
+  font-family:var(--mono);font-size:9px;
+  padding:4px 10px;
+  border:1px solid var(--border2);
+  border-radius:3px;
+  letter-spacing:1px;
+  transition:all .2s;
+}
+.pill.on{color:var(--green);border-color:var(--green);background:rgba(0,230,118,.05);}
+.pill.off{color:var(--txt-3);border-color:var(--border);}
+.pill .dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
+.live-badge{
+  font-family:var(--mono);font-size:9px;
+  color:var(--green);
+  display:flex;align-items:center;gap:5px;
+  letter-spacing:1px;
+}
+.pulse{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--green);
+  animation:pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
+
+/* ── Layout ──────────────────────────────────────────────────── */
+.layout{
+  display:grid;
+  grid-template-columns:300px 1fr 280px;
+  flex:1;
+  overflow:hidden;
+}
+.panel{
+  background:var(--s1);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+.panel-l{border-right:1px solid var(--border);}
+.panel-r{border-left:1px solid var(--border);}
+
+/* ── Panel sections ──────────────────────────────────────────── */
+.sec{
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.sec-hdr{
+  padding:10px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--s2);
+}
+.sec-title{
+  font-family:var(--display);
+  font-size:11px;font-weight:700;
+  letter-spacing:2px;text-transform:uppercase;
+  color:var(--cyan);
+}
+.tag{
+  font-family:var(--mono);font-size:8px;
+  padding:2px 7px;border:1px solid;
+  border-radius:2px;letter-spacing:1px;
+}
+.tag-live{color:var(--green);border-color:var(--green);}
+.tag-ai{color:var(--cyan);border-color:var(--cyan);}
+.tag-warn{color:var(--amber);border-color:var(--amber);}
+
+/* ── Feature Tabs ────────────────────────────────────────────── */
+.feat-tabs{
+  display:flex;
+  border-bottom:1px solid var(--border);
+  background:var(--s2);
+  flex-shrink:0;
+}
+.feat-tab{
+  flex:1;
+  padding:10px 4px;
+  font-family:var(--mono);font-size:9px;
+  letter-spacing:1px;text-transform:uppercase;
+  color:var(--txt-2);
+  cursor:pointer;
+  border:none;background:none;
+  border-bottom:2px solid transparent;
+  transition:all .2s;
+  text-align:center;
+}
+.feat-tab:hover{color:var(--txt);}
+.feat-tab.active{color:var(--cyan);border-bottom-color:var(--cyan);}
+.feat-body{flex:1;overflow-y:auto;padding:14px 16px;}
+
+/* ── Weather ─────────────────────────────────────────────────── */
+.weather-hero{
+  display:flex;align-items:center;gap:14px;
+  margin-bottom:12px;
+}
+.w-icon{font-size:40px;line-height:1;filter:drop-shadow(0 0 10px rgba(0,212,255,.3));}
+.w-temp{
+  font-family:var(--display);
+  font-size:36px;font-weight:800;
+  color:#fff;line-height:1;
+}
+.w-desc{
+  font-family:var(--mono);font-size:10px;
+  color:var(--txt-2);letter-spacing:1px;
+  margin-top:4px;text-transform:uppercase;
+}
+.w-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:6px;
+  margin-bottom:10px;
+}
+.w-card{
+  background:var(--s3);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:8px 10px;
+}
+.w-card .wc-l{
+  font-family:var(--mono);font-size:9px;
+  color:var(--txt-2);text-transform:uppercase;letter-spacing:1px;
+}
+.w-card .wc-v{
+  font-family:var(--display);font-size:20px;font-weight:700;
+  color:#fff;margin-top:2px;
+}
+.w-alert{
+  border-radius:var(--r);
+  padding:9px 12px;
+  font-family:var(--mono);font-size:10px;
+  line-height:1.6;
+  border-left:3px solid var(--amber);
+  background:rgba(255,171,0,.06);
+  color:var(--amber);
+}
+.w-alert.ok{border-color:var(--green);background:rgba(0,230,118,.06);color:var(--green);}
+.w-alert.danger{border-color:var(--red);background:rgba(255,61,90,.06);color:var(--red);}
+.src-tag{
+  display:inline-block;margin-top:8px;
+  font-family:var(--mono);font-size:8px;
+  padding:2px 7px;border-radius:2px;
+  color:var(--txt-2);border:1px solid var(--border);
+}
+
+/* ── Route ───────────────────────────────────────────────────── */
+.route-form{
+  display:flex;flex-direction:column;gap:6px;
+  margin-bottom:12px;
+}
+.r-input{
+  background:var(--s3);
+  border:1px solid var(--border2);
+  border-radius:var(--r);
+  color:var(--txt);
+  font-family:var(--mono);font-size:10px;
+  padding:8px 12px;
+  outline:none;
+  transition:border-color .2s;
+  width:100%;
+}
+.r-input:focus{border-color:var(--cyan);}
+.r-input::placeholder{color:var(--txt-3);}
+.r-btn{
+  background:var(--cyan);
+  border:none;border-radius:var(--r);
+  color:#000;
+  font-family:var(--mono);font-size:10px;font-weight:500;
+  letter-spacing:1px;
+  padding:9px;cursor:pointer;
+  transition:background .2s;
+  width:100%;
+}
+.r-btn:hover{background:#00bcd4;}
+.r-btn:disabled{background:var(--s3);color:var(--txt-3);cursor:not-allowed;}
+
+.route-card{
+  background:var(--s3);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:10px 12px;
+  margin-bottom:7px;
+  cursor:pointer;
+  transition:border-color .2s;
+  position:relative;overflow:hidden;
+}
+.route-card:hover{border-color:var(--border2);}
+.route-card.best{border-color:var(--green);}
+.route-card.best::before{
+  content:'RECOMMENDED';
+  position:absolute;right:0;top:0;
+  background:var(--green);color:#000;
+  font-family:var(--mono);font-size:7px;font-weight:500;
+  padding:2px 7px;letter-spacing:1px;
+  border-bottom-left-radius:var(--r);
+}
+.rc-name{
+  font-family:var(--display);font-size:13px;font-weight:700;
+  color:#fff;margin-bottom:4px;
+}
+.rc-meta{
+  display:flex;gap:8px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:9px;color:var(--txt-2);
+  margin-bottom:6px;
+}
+.rc-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+.rc-fill{height:100%;border-radius:2px;transition:width .8s ease;}
+.rc-status{
+  display:inline-block;
+  font-family:var(--mono);font-size:8px;letter-spacing:1px;
+  padding:2px 7px;border-radius:2px;margin-bottom:5px;
+}
+.s-clear{color:var(--green);background:rgba(0,230,118,.1);}
+.s-moderate{color:var(--amber);background:rgba(255,171,0,.1);}
+.s-heavy{color:var(--red);background:rgba(255,61,90,.1);}
+
+.no-routes{
+  font-family:var(--mono);font-size:10px;
+  color:var(--txt-2);text-align:center;
+  padding:24px 0;line-height:1.8;
+}
+
+/* ── ML Risk ─────────────────────────────────────────────────── */
+.risk-hero{
+  text-align:center;padding:16px 0 12px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:12px;
+}
+.risk-score{
+  font-family:var(--display);
+  font-size:64px;font-weight:800;
+  line-height:1;
+  transition:color .4s;
+}
+.risk-label{
+  font-family:var(--mono);font-size:11px;
+  letter-spacing:3px;text-transform:uppercase;
+  margin-top:6px;
+}
+.risk-bar-wrap{
+  height:6px;background:var(--s3);
+  border-radius:4px;overflow:hidden;
+  margin:12px 0 8px;
+}
+.risk-bar-fill{
+  height:100%;border-radius:4px;
+  transition:width .8s ease,background .4s;
+}
+.risk-models{
+  display:grid;grid-template-columns:1fr 1fr;gap:6px;
+  margin-bottom:10px;
+}
+.model-card{
+  background:var(--s3);border:1px solid var(--border);
+  border-radius:var(--r);padding:8px 10px;
+  text-align:center;
+}
+.model-card .mc-l{
+  font-family:var(--mono);font-size:8px;
+  color:var(--txt-2);text-transform:uppercase;letter-spacing:1px;
+}
+.model-card .mc-v{
+  font-family:var(--display);font-size:22px;font-weight:700;
+  margin-top:2px;
+}
+.risk-alert{
+  border-radius:var(--r);padding:8px 12px;
+  font-family:var(--mono);font-size:10px;line-height:1.6;
+  margin-bottom:6px;
+  border-left:3px solid;
+}
+.risk-alert.low{border-color:var(--green);background:rgba(0,230,118,.06);color:var(--green);}
+.risk-alert.mod{border-color:var(--amber);background:rgba(255,171,0,.06);color:var(--amber);}
+.risk-alert.high{border-color:var(--orange);background:rgba(255,109,58,.06);color:var(--orange);}
+.risk-alert.crit{border-color:var(--red);background:rgba(255,61,90,.06);color:var(--red);}
+.risk-idle{
+  text-align:center;padding:30px 0;
+  font-family:var(--mono);font-size:10px;
+  color:var(--txt-2);line-height:2;
+}
+.risk-idle .ri-icon{font-size:32px;margin-bottom:10px;}
+.risk-zone{
+  font-family:var(--mono);font-size:9px;
+  color:var(--txt-2);text-align:center;
+  padding-top:8px;border-top:1px solid var(--border);
+  margin-top:8px;
+}
+
+/* ── Map ─────────────────────────────────────────────────────── */
+.map-wrap{position:relative;flex:1;}
+#map{width:100%;height:100%;cursor:crosshair;}
+
+.map-top{
+  position:absolute;top:12px;left:12px;z-index:400;
+  display:flex;gap:7px;
+}
+.map-btn{
+  background:rgba(7,9,15,.88);
+  border:1px solid var(--border2);
+  border-radius:var(--r);
+  backdrop-filter:blur(8px);
+  padding:6px 12px;
+  font-family:var(--mono);font-size:9px;
+  color:var(--txt-2);
+  cursor:pointer;display:flex;align-items:center;gap:5px;
+  transition:all .2s;
+  letter-spacing:1px;
+}
+.map-btn:hover,.map-btn.on{color:var(--cyan);border-color:var(--cyan);}
+.map-btn .bd{width:5px;height:5px;border-radius:50%;background:currentColor;}
+
+.map-hint{
+  position:absolute;bottom:50px;left:50%;transform:translateX(-50%);
+  z-index:400;
+  background:rgba(7,9,15,.9);
+  border:1px solid var(--cyan);
+  border-radius:var(--r);
+  backdrop-filter:blur(8px);
+  padding:7px 18px;
+  font-family:var(--mono);font-size:9px;
+  color:var(--cyan);letter-spacing:2px;
+  pointer-events:none;
+  animation:hintblink 2.5s ease-in-out infinite;
+}
+@keyframes hintblink{0%,100%{opacity:.5}50%{opacity:1}}
+
+.map-legend{
+  position:absolute;bottom:12px;left:12px;z-index:400;
+  background:rgba(7,9,15,.88);
+  border:1px solid var(--border2);
+  border-radius:var(--r);
+  backdrop-filter:blur(8px);
+  padding:10px 14px;
+}
+.legend-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-family:var(--mono);font-size:9px;color:var(--txt-2);}
+.legend-row:last-child{margin-bottom:0;}
+.lc{width:10px;height:10px;border-radius:2px;}
+
+/* ── Spinner overlay ─────────────────────────────────────────── */
+.spin-overlay{
+  position:absolute;inset:0;z-index:900;
+  background:rgba(7,9,15,.7);
+  backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;
+  flex-direction:column;gap:12px;
+}
+.spin-overlay.show{display:flex;}
+.spinner{
+  width:36px;height:36px;
+  border:2px solid var(--border2);
+  border-top:2px solid var(--cyan);
+  border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin-txt{font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:3px;}
+
+/* ── Right panel ─────────────────────────────────────────────── */
+.zone-list{padding:12px 14px;overflow-y:auto;}
+.zone-row{
+  padding:8px 0;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.zone-row:last-child{border-bottom:none;}
+.zr-name{
+  font-family:var(--body);font-size:11px;
+  color:var(--txt);flex:1;line-height:1.3;
+}
+.zr-score{
+  font-family:var(--mono);font-size:11px;font-weight:500;
+  width:36px;text-align:right;flex-shrink:0;
+}
+.zr-bar-wrap{
+  width:50px;height:4px;
+  background:var(--border);border-radius:2px;overflow:hidden;
+  flex-shrink:0;
+}
+.zr-bar{height:100%;border-radius:2px;transition:width .6s ease;}
+
+.news-list{padding:12px 14px;overflow-y:auto;}
+.news-item{
+  padding:9px 0;
+  border-bottom:1px solid var(--border);
+  animation:fadein .3s ease;
+}
+.news-item:last-child{border-bottom:none;}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.ni-source{
+  font-family:var(--mono);font-size:8px;
+  color:var(--cyan);letter-spacing:1px;
+  text-transform:uppercase;margin-bottom:4px;
+  display:flex;align-items:center;gap:6px;
+}
+.ni-time{color:var(--txt-3);}
+.ni-title{
+  font-family:var(--body);font-size:11px;
+  color:var(--txt);line-height:1.5;
+}
+.ni-link{
+  font-family:var(--mono);font-size:8px;
+  color:var(--txt-2);text-decoration:none;
+  display:inline-block;margin-top:4px;
+  border-bottom:1px solid var(--border2);
+  transition:color .2s;
+}
+.ni-link:hover{color:var(--cyan);}
+
+/* ── Status bar ──────────────────────────────────────────────── */
+.statusbar{
+  height:26px;
+  background:var(--s2);
+  border-top:1px solid var(--border);
+  display:flex;align-items:center;
+  padding:0 16px;gap:20px;
+  flex-shrink:0;
+}
+.sb-item{
+  font-family:var(--mono);font-size:9px;
+  color:var(--txt-2);
+  display:flex;align-items:center;gap:5px;
+}
+.sb-item span{color:var(--cyan);}
+.sb-sep{width:1px;height:12px;background:var(--border);}
+
+/* ── Alert toast ─────────────────────────────────────────────── */
+.toast{
+  position:fixed;bottom:40px;right:20px;z-index:9999;
+  max-width:320px;
+  background:var(--s2);
+  border:1px solid var(--border2);
+  border-radius:var(--r);
+  padding:12px 16px;
+  font-family:var(--mono);font-size:10px;
+  line-height:1.6;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+  transform:translateX(120%);
+  transition:transform .3s ease;
+  cursor:pointer;
+}
+.toast.show{transform:translateX(0);}
+.toast.warn{border-left:3px solid var(--amber);color:var(--amber);}
+.toast.danger{border-left:3px solid var(--red);color:var(--red);}
+.toast.ok{border-left:3px solid var(--green);color:var(--green);}
+
+/* ── Right panel tabs ────────────────────────────────────────── */
+.r-tabs{
+  display:flex;
+  border-bottom:1px solid var(--border);
+  background:var(--s2);
+  flex-shrink:0;
+}
+.r-tab{
+  flex:1;padding:9px 4px;
+  font-family:var(--mono);font-size:9px;
+  letter-spacing:1px;text-transform:uppercase;
+  color:var(--txt-2);cursor:pointer;
+  border:none;background:none;
+  border-bottom:2px solid transparent;
+  transition:all .2s;text-align:center;
+}
+.r-tab:hover{color:var(--txt);}
+.r-tab.active{color:var(--cyan);border-bottom-color:var(--cyan);}
+.r-body{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+.r-pane{flex:1;overflow-y:auto;display:none;}
+.r-pane.show{display:block;}
+
+/* ── Loader for zone list ────────────────────────────────────── */
+.zone-loading{
+  text-align:center;padding:24px;
+  font-family:var(--mono);font-size:10px;
+  color:var(--txt-2);
+}
+</style>
+</head>
+<body>
+
+<!-- Toast -->
+<div class="toast" id="toast" onclick="this.classList.remove('show')"></div>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🛡</div>
+    SAP · Chennai
+  </div>
+
+  <div class="hdr-center">
+    <div id="live-clock">--:--:--</div>
+    <div class="hdr-loc" id="hdr-loc">CENTRAL MONITORING — CLICK MAP TO PREDICT</div>
+  </div>
+
+  <div class="hdr-right">
+    <div class="pill off" id="b-backend"><div class="dot"></div>BACKEND</div>
+    <div class="pill off" id="b-ml"><div class="dot"></div>ML</div>
+    <div class="pill off" id="b-weather"><div class="dot"></div>WEATHER</div>
+    <div class="pill off" id="b-maps"><div class="dot"></div>MAPS</div>
+    <div class="live-badge"><div class="pulse"></div>LIVE</div>
+  </div>
+</header>
+
+<!-- Layout -->
+<div class="layout">
+
+  <!-- ═══ LEFT PANEL — 3 features via tabs ═══ -->
+  <div class="panel panel-l">
+    <div class="feat-tabs">
+      <button class="feat-tab active" onclick="switchTab('weather',this)">🌦 Weather</button>
+      <button class="feat-tab" onclick="switchTab('route',this)">🗺 Route</button>
+      <button class="feat-tab" onclick="switchTab('risk',this)">🧠 ML Risk</button>
+    </div>
+
+    <!-- ── FEATURE 1: Weather ── -->
+    <div class="feat-body" id="tab-weather">
+      <div class="weather-hero">
+        <div class="w-icon" id="w-icon">⏳</div>
+        <div>
+          <div class="w-temp" id="w-temp">--°C</div>
+          <div class="w-desc" id="w-desc">Loading…</div>
+        </div>
+      </div>
+      <div class="w-grid">
+        <div class="w-card">
+          <div class="wc-l">Humidity</div>
+          <div class="wc-v" id="w-hum">--%</div>
+        </div>
+        <div class="w-card">
+          <div class="wc-l">Wind</div>
+          <div class="wc-v" id="w-wind">-- km/h</div>
+        </div>
+        <div class="w-card">
+          <div class="wc-l">Visibility</div>
+          <div class="wc-v" id="w-vis">-- km</div>
+        </div>
+        <div class="w-card">
+          <div class="wc-l">Rainfall</div>
+          <div class="wc-v" id="w-rain">-- mm</div>
+        </div>
+      </div>
+      <div class="w-alert" id="w-alert">Fetching weather data…</div>
+      <div class="src-tag" id="w-src">SOURCE: --</div>
+    </div>
+
+    <!-- ── FEATURE 2: Route ── -->
+    <div class="feat-body" id="tab-route" style="display:none;">
+      <div class="route-form">
+        <input class="r-input" id="r-from" placeholder="From  (e.g. Tambaram)" />
+        <input class="r-input" id="r-to"   placeholder="To  (e.g. T Nagar)" />
+        <button class="r-btn" id="r-btn" onclick="fetchRoutes()">FIND ROUTE ▶</button>
+      </div>
+      <div id="route-results">
+        <div class="no-routes">Enter origin and destination<br>to get real-time routes.</div>
+      </div>
+    </div>
+
+    <!-- ── FEATURE 3: ML Risk ── -->
+    <div class="feat-body" id="tab-risk" style="display:none;">
+      <div id="risk-content">
+        <div class="risk-idle">
+          <div class="ri-icon">🎯</div>
+          Click any location<br>on the map<br>to run ML prediction.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MAP ═══ -->
+  <div class="map-wrap">
+    <div id="map"></div>
+
+    <div class="map-top">
+      <div class="map-btn on" id="btn-heat" onclick="toggle('heat',this)"><div class="bd"></div>HEATMAP</div>
+      <div class="map-btn on" id="btn-zones" onclick="toggle('zones',this)"><div class="bd"></div>ZONES</div>
+    </div>
+
+    <div class="map-hint" id="map-hint">⊕ CLICK ANYWHERE — ML PREDICTION IN REAL TIME</div>
+
+    <div class="map-legend">
+      <div style="font-family:var(--mono);font-size:8px;color:var(--txt-2);letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">Risk Level</div>
+      <div class="legend-row"><div class="lc" style="background:#ff3d5a;"></div>Critical / High</div>
+      <div class="legend-row"><div class="lc" style="background:#ffab00;"></div>Moderate</div>
+      <div class="legend-row"><div class="lc" style="background:#00e676;"></div>Low</div>
+    </div>
+
+    <div class="spin-overlay" id="spin-overlay">
+      <div class="spinner"></div>
+      <div class="spin-txt" id="spin-txt">ANALYZING</div>
+    </div>
+  </div>
+
+  <!-- ═══ RIGHT PANEL ═══ -->
+  <div class="panel panel-r">
+    <div class="r-tabs">
+      <button class="r-tab active" onclick="switchRTab('zones',this)">Zone Risk</button>
+    
+    </div>
+    <div class="r-body">
+      <!-- Zone Risk -->
+      <div class="r-pane show" id="rpane-zones">
+        <div class="sec-hdr">
+          <div class="sec-title">Live Zone Risk</div>
+          <div class="tag tag-ai">ML BATCH</div>
+        </div>
+        <div class="zone-list" id="zone-list">
+          <div class="zone-loading">Loading zone predictions…</div>
+        </div>
+      </div>
+      
+      
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Status Bar -->
+<div class="statusbar">
+  <div class="sb-item">BACKEND <span id="st-be">—</span></div>
+  <div class="sb-sep"></div>
+  <div class="sb-item">MODEL <span id="st-ml">—</span></div>
+  <div class="sb-sep"></div>
+  <div class="sb-item">ZONE <span id="st-zone">—</span></div>
+  <div class="sb-sep"></div>
+  <div class="sb-item">WEATHER <span id="st-wx">—</span></div>
+  <div class="sb-sep"></div>
+  <div class="sb-item">REFRESH <span id="st-ref">0s</span></div>
+  <div class="sb-sep"></div>
+  <div class="sb-item">CITY <span>CHENNAI, TN</span></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════ */
+const API = 'http://127.0.0.1:8000';
+
+/* ═══════════════════════════════════════════════════
+   CLOCK + REFRESH TIMER
+═══════════════════════════════════════════════════ */
+function tick(){
+  document.getElementById('live-clock').textContent =
+    new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+setInterval(tick,1000); tick();
+
+let refSec = 0;
+setInterval(()=>{
+  refSec++;
+  document.getElementById('st-ref').textContent = refSec+'s';
+  if(refSec >= 30){ refSec=0; autoRefresh(); }
+},1000);
+
+/* ═══════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════ */
+let toastTimer;
+function toast(msg, type='warn'){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'),5000);
+}
+
+/* ═══════════════════════════════════════════════════
+   API HELPER
+═══════════════════════════════════════════════════ */
+async function api(path, opts={}){
+  try{
+    const r = await fetch(API+path,{headers:{'Content-Type':'application/json'},...opts});
+    if(!r.ok) throw new Error(r.status);
+    return await r.json();
+  }catch(e){ console.warn('API',path,e.message); return null; }
+}
+
+/* ═══════════════════════════════════════════════════
+   TAB SWITCHING
+═══════════════════════════════════════════════════ */
+function switchTab(name, btn){
+  ['weather','route','risk'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display = t===name?'block':'none';
+  });
+  document.querySelectorAll('.feat-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function switchRTab(name, btn){
+  document.querySelectorAll('.r-pane').forEach(p=>p.classList.remove('show'));
+  document.getElementById('rpane-'+name).classList.add('show');
+  document.querySelectorAll('.r-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+/* ═══════════════════════════════════════════════════
+   HEALTH CHECK
+═══════════════════════════════════════════════════ */
+async function checkHealth(){
+  const d = await api('/api/health');
+  const set = (id,on) =>{
+    const el=document.getElementById(id);
+    el.className = `pill ${on?'on':'off'}`;
+  };
+  if(d){
+    set('b-backend',true);
+    set('b-ml', d.model_ready);
+    set('b-weather', d.weather_api);
+    set('b-maps', d.maps_api);
+    document.getElementById('st-be').textContent = 'ONLINE';
+    document.getElementById('st-ml').textContent = d.model_ready?'READY':'NOT TRAINED';
+    if(!d.model_ready) toast('⚠ ML model not found. Run: python train_model.py','warn');
+  } else {
+    document.getElementById('st-be').textContent = 'OFFLINE';
+    toast('⚠ Backend offline — check if server is running','warn');
+  }
+  return d;
+}
+
+/* ═══════════════════════════════════════════════════
+   MAP SETUP
+═══════════════════════════════════════════════════ */
+const map = L.map('map',{center:[13.0827,80.2707],zoom:12,zoomControl:true,attributionControl:false});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19}).addTo(map);
+
+// Leaflet popup dark theme
+const ps = document.createElement('style');
+ps.textContent=`.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#0c1017!important;color:#ccd8e8!important;border:1px solid #1c2a3a!important;border-radius:6px!important;box-shadow:0 4px 24px rgba(0,0,0,.7)!important;}.leaflet-popup-close-button{color:#5a7a94!important;}`;
+document.head.appendChild(ps);
+
+/* ─ Heatmap — populated from batch API ─ */
+let heatLayer = L.heatLayer([],{radius:45,blur:28,gradient:{0.2:'#00e676',0.5:'#ffab00',0.8:'#ff6d3a',1.0:'#ff3d5a'}}).addTo(map);
+
+/* ─ Zone markers — from batch API ─ */
+let zoneMarkers = [];
+
+function buildZoneMarkers(zones){
+  zoneMarkers.forEach(m=>map.removeLayer(m));
+  zoneMarkers=[];
+  zones.forEach(z=>{
+    const risk = z.risk_score||0;
+    const color = risk>70?'#ff3d5a':risk>45?'#ffab00':'#00e676';
+    const icon = L.divIcon({
+      className:'',
+      html:`<div style="
+        width:${8+risk*.12}px;height:${8+risk*.12}px;
+        border-radius:50%;
+        background:${color};
+        border:2px solid rgba(255,255,255,.25);
+        box-shadow:0 0 ${risk*.2}px ${color};
+        cursor:pointer;
+      "></div>`,
+      iconAnchor:[8,8]
+    });
+    const m = L.marker([z.lat||13.0827, z.lng||80.2707],{icon})
+      .addTo(map)
+      .bindPopup(`<b>${z.zone}</b><br>Risk: ${risk}% — ${z.risk_level||''}`);
+    zoneMarkers.push(m);
+  });
+}
+
+let layerState={heat:true,zones:true};
+function toggle(name,btn){
+  layerState[name]=!layerState[name];
+  btn.classList.toggle('on',layerState[name]);
+  if(name==='heat'){
+    layerState.heat ? map.addLayer(heatLayer) : map.removeLayer(heatLayer);
+  } else if(name==='zones'){
+    zoneMarkers.forEach(m=> layerState.zones?map.addLayer(m):map.removeLayer(m));
+  }
+}
+
+/* ─ Click marker & circle ─ */
+let clickMarker=null, clickCircle=null;
+
+map.on('click', async e=>{
+  const {lat,lng} = e.latlng;
+  await analyzeLocation(lat,lng);
+});
+
+function setSpinner(on, msg='ANALYZING'){
+  document.getElementById('spin-txt').textContent=msg;
+  document.getElementById('spin-overlay').classList.toggle('show',on);
+}
+
+/* ═══════════════════════════════════════════════════
+   FEATURE 1 — WEATHER (from API, no hardcoding)
+═══════════════════════════════════════════════════ */
+async function loadWeather(lat=13.0827, lng=80.2707){
+  const d = await api(`/api/weather?lat=${lat}&lng=${lng}`);
+  if(!d) return;
+
+  // Map weather condition to emoji
+  const icons = {
+    'Clear':'☀️','Clouds':'⛅','Rain':'🌧','Drizzle':'🌦',
+    'Thunderstorm':'⛈','Fog':'🌫','Mist':'🌫','Haze':'🌫',
+    'Snow':'❄️','Smoke':'💨'
+  };
+  const cond = d.weather_condition||'Clear';
+  document.getElementById('w-icon').textContent = icons[cond]||'🌤';
+  document.getElementById('w-temp').textContent = `${d.temperature_c}°C`;
+  document.getElementById('w-desc').textContent = cond.toUpperCase();
+  document.getElementById('w-hum').textContent  = `${d.humidity_pct}%`;
+  document.getElementById('w-wind').textContent = `${d.wind_speed_kmh} km/h`;
+  document.getElementById('w-vis').textContent  = `${d.visibility_km} km`;
+  document.getElementById('w-rain').textContent = `${d.rainfall_mm} mm`;
+  document.getElementById('w-src').textContent  = `SOURCE: ${(d.source||'mock').toUpperCase()}`;
+  document.getElementById('st-wx').textContent  = cond;
+
+  // Advisory
+  const adv = d.traffic_advisory||{};
+  const msgs = adv.alerts||[];
+  const alertEl = document.getElementById('w-alert');
+
+  if(msgs.length>0){
+    alertEl.textContent = msgs.join(' · ');
+    const sev = adv.severity||'';
+    alertEl.className = `w-alert ${sev==='DANGER'?'danger':sev==='OK'?'ok':''}`;
+    if(sev==='DANGER') toast('⛈ '+msgs[0],'danger');
+  } else {
+    // Derive advisory from raw values
+    let msg='✓ CONDITIONS NORMAL', cls='ok';
+    if(d.rainfall_mm>20){msg='⚠ HEAVY RAIN — High accident risk. Avoid underpasses.';cls='danger';}
+    else if(d.rainfall_mm>5){msg='↻ LIGHT RAIN — Moderate risk. Reduce speed.';cls='';}
+    else if(d.visibility_km<2){msg='⚠ LOW VISIBILITY — Use headlights. Drive slow.';cls='danger';}
+    else if(d.wind_speed_kmh>40){msg='⚠ STRONG WINDS — Risk for high-sided vehicles.';cls='';}
+    alertEl.textContent=msg; alertEl.className=`w-alert ${cls}`;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   FEATURE 2 — ROUTE (from TomTom via API, no hardcoding)
+═══════════════════════════════════════════════════ */
+let routeLayers=[];
+function clearRoutes(){
+  routeLayers.forEach(l=>map.removeLayer(l));
+  routeLayers=[];
+}
+
+async function fetchRoutes(){
+  const from = document.getElementById('r-from').value.trim();
+  const to   = document.getElementById('r-to').value.trim();
+  if(!from||!to){ toast('Enter both origin and destination','warn'); return; }
+
+  const btn = document.getElementById('r-btn');
+  btn.disabled=true; btn.textContent='FETCHING…';
+  setSpinner(true,'FETCHING ROUTES');
+
+  const d = await api(`/api/routes?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}`);
+
+  setSpinner(false);
+  btn.disabled=false; btn.textContent='FIND ROUTE ▶';
+
+  const el = document.getElementById('route-results');
+
+  if(!d||!d.routes||d.routes.length===0){
+    el.innerHTML='<div class="no-routes">Could not find routes.<br>Check place names and try again.</div>';
+    return;
+  }
+
+  clearRoutes();
+
+  // Draw polylines on map
+  d.routes.forEach((r,i)=>{
+    if(!r.coordinates||r.coordinates.length===0) return;
+    const color = r.traffic_status==='HEAVY'?'#ff3d5a':r.traffic_status==='MODERATE'?'#ffab00':'#00e676';
+    const latlngs = r.coordinates.map(c=>[c[1],c[0]]);
+    const line = L.polyline(latlngs,{
+      color, weight:r.recommended?6:3,
+      opacity:r.recommended?0.95:0.5,
+      dashArray:r.recommended?null:'10,6'
+    }).addTo(map).bindPopup(`<b>${r.summary}</b><br>${r.duration_traffic_min} min · ${r.distance_km} km`);
+    routeLayers.push(line);
+    if(r.recommended) map.fitBounds(line.getBounds(),{padding:[40,40]});
+  });
+
+  // Render cards — all data from API
+  el.innerHTML = d.routes.map(r=>{
+    const sc = r.traffic_status==='HEAVY'?'s-heavy':r.traffic_status==='MODERATE'?'s-moderate':'s-clear';
+    const cong = r.congestion_pct||0;
+    const color = r.traffic_status==='HEAVY'?'#ff3d5a':r.traffic_status==='MODERATE'?'#ffab00':'#00e676';
+    return `<div class="route-card ${r.recommended?'best':''}">
+      <div class="rc-status ${sc}">${r.traffic_status}</div>
+      <div class="rc-name">${r.summary}</div>
+      <div class="rc-meta">
+        <span>🕐 ${r.duration_traffic_min} min</span>
+        <span>📍 ${r.distance_km} km</span>
+        ${r.delay_min>0?`<span style="color:var(--red);">+${r.delay_min}m delay</span>`:'<span style="color:var(--green);">On time</span>'}
+      </div>
+      <div class="rc-bar"><div class="rc-fill" style="width:${cong}%;background:${color};"></div></div>
+    </div>`;
+  }).join('');
+
+  const best = d.routes.find(r=>r.recommended)||d.routes[0];
+  if(best.traffic_status==='HEAVY')
+    toast(`🚗 Heavy traffic on ${best.summary} — +${best.delay_min}min delay`,'warn');
+}
+
+/* ═══════════════════════════════════════════════════
+   FEATURE 3 — ML RISK PREDICTION (from backend, no hardcoding)
+═══════════════════════════════════════════════════ */
+async function analyzeLocation(lat,lng){
+  document.getElementById('map-hint').style.display='none';
+  setSpinner(true,'ML PREDICTION');
+  switchTab('risk', document.querySelectorAll('.feat-tab')[2]);
+
+  // Place marker
+  if(clickMarker) map.removeLayer(clickMarker);
+  const icon=L.divIcon({className:'',html:`<div style="width:16px;height:16px;border-radius:50%;background:var(--cyan);border:3px solid #fff;box-shadow:0 0 16px var(--cyan);"></div>`,iconSize:[16,16],iconAnchor:[8,8]});
+  clickMarker=L.marker([lat,lng],{icon,zIndexOffset:1000}).addTo(map);
+
+  // Call full alert API
+  const d = await api('/api/alerts/full',{method:'POST',body:JSON.stringify({latitude:lat,longitude:lng})});
+  setSpinner(false);
+
+  if(!d){
+    document.getElementById('risk-content').innerHTML=`<div class="risk-idle"><div class="ri-icon">⚠️</div>Backend offline.<br>Start server and retry.</div>`;
+    return;
+  }
+
+  const pred   = d.prediction||{};
+  const weather= d.weather||{};
+  const zone   = d.zone||'Unknown Zone';
+  const risk   = pred.risk_score||0;
+  const level  = pred.risk_level||'LOW';
+  const xgb    = pred.xgb_prob||pred.xgb_probability||0;
+  const rf     = pred.rf_prob||pred.rf_probability||0;
+  const alerts = d.alerts||[];
+
+  // Colors
+  const color = risk>70?'var(--red)':risk>55?'var(--orange)':risk>35?'var(--amber)':'var(--green)';
+  const cls   = risk>70?'crit':risk>55?'high':risk>35?'mod':'low';
+
+  // Circle on map
+  if(clickCircle) map.removeLayer(clickCircle);
+  const cc = risk>70?'#ff3d5a':risk>55?'#ff6d3a':risk>35?'#ffab00':'#00e676';
+  clickCircle=L.circle([lat,lng],{radius:900,color:cc,fillColor:cc,fillOpacity:.07,weight:2,dashArray:'6,4',opacity:.5}).addTo(map);
+  map.flyTo([lat,lng],14,{duration:.8});
+
+  document.getElementById('hdr-loc').textContent=`▶ ${zone} · ${risk}% · ${level}`;
+  document.getElementById('st-zone').textContent=zone;
+
+  // Build alerts HTML — purely from API response
+  const alertsHTML = alerts.length>0
+    ? alerts.map(a=>{
+        const msg = typeof a==='string'?a:(a.message||a);
+        return `<div class="risk-alert ${cls}">${msg}</div>`;
+      }).join('')
+    : `<div class="risk-alert ${cls}">
+        ${level==='LOW'?'✓ Road conditions are safe. Normal caution advised.':
+          level==='MODERATE'?'↻ Moderate risk detected. Drive carefully.':
+          level==='HIGH'?'⚠ High accident risk. Consider alternate route.':
+          '🚨 CRITICAL RISK. Avoid this location if possible.'}
+      </div>`;
+
+  document.getElementById('risk-content').innerHTML=`
+    <div class="risk-hero">
+      <div class="risk-score" style="color:${color};">${risk}%</div>
+      <div class="risk-label" style="color:${color};">${level} RISK</div>
+      <div class="risk-bar-wrap">
+        <div class="risk-bar-fill" style="width:${risk}%;background:${color};"></div>
+      </div>
+    </div>
+    <div class="risk-models">
+      <div class="model-card">
+        <div class="mc-l">XGBoost</div>
+        <div class="mc-v" style="color:var(--cyan);">${typeof xgb==='number'&&xgb<=1?(xgb*100).toFixed(0):xgb}%</div>
+      </div>
+      <div class="model-card">
+        <div class="mc-l">Random Forest</div>
+        <div class="mc-v" style="color:var(--orange);">${typeof rf==='number'&&rf<=1?(rf*100).toFixed(0):rf}%</div>
+      </div>
+    </div>
+    ${alertsHTML}
+    <div class="risk-zone">
+      📍 ${zone} · LAT ${lat.toFixed(4)} · LNG ${lng.toFixed(4)}<br>
+      🌡 ${weather.temperature_c||'--'}°C · ${weather.weather_condition||'--'} · ${weather.rainfall_mm||0}mm rain
+    </div>
+  `;
+
+  // Update weather tab with response data
+  if(weather.temperature_c){
+    const icons={'Clear':'☀️','Clouds':'⛅','Rain':'🌧','Drizzle':'🌦','Thunderstorm':'⛈','Fog':'🌫','Mist':'🌫'};
+    document.getElementById('w-icon').textContent = icons[weather.weather_condition]||'🌤';
+    document.getElementById('w-temp').textContent = `${weather.temperature_c}°C`;
+    document.getElementById('w-desc').textContent = (weather.weather_condition||'').toUpperCase();
+    document.getElementById('w-hum').textContent  = `${weather.humidity_pct}%`;
+    document.getElementById('w-wind').textContent = `${weather.wind_speed_kmh} km/h`;
+    document.getElementById('w-vis').textContent  = `${weather.visibility_km} km`;
+    document.getElementById('w-rain').textContent = `${weather.rainfall_mm} mm`;
+    document.getElementById('st-wx').textContent  = weather.weather_condition||'--';
+  }
+
+  // Toast
+  if(level==='CRITICAL') toast(`🚨 CRITICAL at ${zone} — ${typeof alerts[0]==='string'?alerts[0]:alerts[0]?.message||'High risk'}`, 'danger');
+  else if(level==='HIGH') toast(`⚠ HIGH RISK at ${zone}`, 'warn');
+}
+
+/* ═══════════════════════════════════════════════════
+   ZONE RISK — from batch ML API (no hardcoded data)
+═══════════════════════════════════════════════════ */
+async function loadZones(){
+  const d = await api('/api/predict/batch',{method:'POST'});
+  const el = document.getElementById('zone-list');
+  if(!d||!d.zones){ el.innerHTML='<div class="zone-loading">Backend offline — zone data unavailable.</div>'; return; }
+
+  // Build heatmap from live ML data
+  const heatPts = d.zones.map(z=>[z.lat||13.0827, z.lng||80.2707, (z.risk_score||0)/100]);
+  heatLayer.setLatLngs(heatPts);
+
+  // Build zone markers
+  buildZoneMarkers(d.zones);
+
+  // Build zone list — all from API
+  el.innerHTML = d.zones.map(z=>{
+    const r = z.risk_score||0;
+    const color = r>70?'#ff3d5a':r>45?'#ffab00':'#00e676';
+    return `<div class="zone-row">
+      <div class="zr-name">${z.zone}</div>
+      <div class="zr-bar-wrap"><div class="zr-bar" style="width:${r}%;background:${color};"></div></div>
+      <div class="zr-score" style="color:${color};">${r}%</div>
+    </div>`;
+  }).join('');
+}
+
+
+
+/* ═══════════════════════════════════════════════════
+   AUTO REFRESH
+═══════════════════════════════════════════════════ */
+async function autoRefresh(){
+  await loadWeather();
+  await loadZones();
+}
+
+/* ═══════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════ */
+(async()=>{
+  await checkHealth();
+  await Promise.all([
+    loadWeather(),
+    loadZones(),
+    
+  ]);
+})();
+</script>
+</body>
+</html>
