@@ -796,24 +796,33 @@ function switchRTab(name, btn){
    HEALTH CHECK
 ═══════════════════════════════════════════════════ */
 async function checkHealth(){
-  const d = await api('/api/health');
-  const set = (id,on) =>{
+  const set = (id,on)=>{
     const el=document.getElementById(id);
     el.className = `pill ${on?'on':'off'}`;
   };
-  if(d){
+
+  try{
+    const r = await fetch(API + '/api/health');
+    const d = await r.json();
+
     set('b-backend',true);
     set('b-ml', d.model_ready);
     set('b-weather', d.weather_api);
     set('b-maps', d.maps_api);
+
     document.getElementById('st-be').textContent = 'ONLINE';
-    document.getElementById('st-ml').textContent = d.model_ready?'READY':'NOT TRAINED';
-    if(!d.model_ready) toast('⚠ ML model not found. Run: python train_model.py','warn');
-  } else {
-    document.getElementById('st-be').textContent = 'OFFLINE';
-    toast('⚠ Backend offline — check if server is running','warn');
+    document.getElementById('st-ml').textContent =
+      d.model_ready ? 'READY' : 'NOT TRAINED';
+
+  } catch(e){
+    console.warn("Health check failed:", e);
+
+    // ⚡ DON'T mark offline immediately
+    document.getElementById('st-be').textContent = 'CONNECTING...';
+
+    // Retry after delay
+    setTimeout(checkHealth, 3000);
   }
-  return d;
 }
 
 /* ═══════════════════════════════════════════════════
